@@ -11,4 +11,12 @@ To edit the time to a specific value, simply click and edit the hex or normal ti
 
 To reset back to the running clock based on your local time, simply press reset.
 
-This code was written by AI based on my prompts and hypothesis about the FF:06:B5 mystery in Cyberpunk 2077.
+Working web clock of the FF:06:B5 time format (link within)
+
+Web clock site: https://gistya.github.io/ff06b5/
+
+Reddit thread explaining the theory/hypothesis behind this: https://www.reddit.com/r/FF06B5/s/VElHU4erh7
+
+Please post any discussion of the theory on the theory thread so it's all in one place! Thanks.
+
+This code was written by ChatGPT based on my prompts and hypothesis about the FF:06:B5 mystery in Cyberpunk 2077. The code was created and tested on iOS, and the repo and github site were too.
