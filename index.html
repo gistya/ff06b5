@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Hexadecimal Clock</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+            background-color: #000000;
+            color: white;
+            text-align: center;
+        }
+        #time {
+            font-size: 5rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        #actual-time {
+            font-size: 1.5rem;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+        #reset {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 1rem;
+            background-color: white;
+            color: black;
+            border: none;
+            cursor: pointer;
+            display: none;
+        }
+        #reset:hover {
+            background-color: lightgray;
+        }
+    </style>
+</head>
+<body>
+    <div id="time" contenteditable="false">00:00:00</div>
+    <div id="actual-time" contenteditable="false">12:00:00.00</div>
+    <button id="reset">Reset</button>
+
+    <script>
+        let paused = false;
+        let customTime = null;
+
+        function updateHexClock() {
+            const now = customTime ? new Date(customTime) : new Date();
+
+            // Calculate time as fraction of the day
+            const totalMilliseconds = now.getHours() * 3600000 + now.getMinutes() * 60000 + now.getSeconds() * 1000 + now.getMilliseconds();
+            const fractionOfDay = totalMilliseconds / 86400000; // 86400000 milliseconds in a day
+
+            // Convert to 24-bit value and format as hexadecimal
+            const hexValue = Math.floor(fractionOfDay * 0xFFFFFF); // Scale to 24-bit range
+            const hexString = hexValue.toString(16).padStart(6, '0').toUpperCase(); // Ensure 6 digits
+
+            // Format time as XX:XX:XX
+            const hexTime = `${hexString.slice(0, 2)}:${hexString.slice(2, 4)}:${hexString.slice(4, 6)}`;
+
+            // Format actual time as 12-hour clock
+            let hours = now.getHours();
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds() + now.getMilliseconds() / 1000;
+            const period = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12 || 12; // Convert to 12-hour format
+            const actualTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toFixed(2).padStart(5, '0')} ${period}`;
+
+            // Update DOM
+            document.getElementById('time').textContent = hexTime;
+            document.getElementById('actual-time').textContent = actualTime;
+            document.body.style.backgroundColor = `#${hexString}`;
+
+            // Request next frame
+            if (!paused) requestAnimationFrame(updateHexClock);
+        }
+
+        function enableEditing(event) {
+            paused = true;
+            event.target.setAttribute('contenteditable', 'true');
+            event.target.focus();
+            document.getElementById('reset').style.display = 'block';
+        }
+
+		function validateHexTime(event) {
+		    let input = event.target.textContent.replace(/[^0-9A-Fa-f]/g, '').toUpperCase(); // Only allow hex digits
+		    input = input.slice(0, 6); // Limit to 6 characters
+		
+		    // Auto-insert colons
+		    if (input.length > 2) {
+		        input = input.slice(0, 2) + ':' + input.slice(2);
+		    }
+		    if (input.length > 5) {
+		        input = input.slice(0, 5) + ':' + input.slice(5);
+		    }
+		
+		    event.target.textContent = input;
+		
+		    // If full hex string is entered, update background and time
+		    if (input.length === 8) {
+		        const hexString = input.replace(/:/g, '');
+		        const hexValue = parseInt(hexString, 16); // Parse hex as an integer
+		        const fractionOfDay = hexValue / 0xFFFFFF; // Use floating-point division for precise fraction
+		
+		        // Calculate total milliseconds directly and avoid rounding
+		        const totalMilliseconds = Math.round(fractionOfDay * 86400000); // Exact milliseconds in day
+		        const recalculatedFraction = totalMilliseconds / 86400000; // Back to fraction for consistency
+		
+		        // Update customTime and ensure precision
+		        customTime = new Date();
+		        customTime.setHours(0, 0, 0, 0); // Start of the day
+		        customTime = new Date(customTime.getTime() + totalMilliseconds);
+		
+		        // Update clocks and background immediately
+		        updateHexClock();
+		
+		        // Fix display rounding by recalculating the hex string from recalculatedFraction
+		        const correctedHexValue = Math.round(recalculatedFraction * 0xFFFFFF);
+		        const correctedHexString = correctedHexValue.toString(16).padStart(6, '0').toUpperCase();
+		        event.target.textContent = `${correctedHexString.slice(0, 2)}:${correctedHexString.slice(2, 4)}:${correctedHexString.slice(4, 6)}`;
+		    }
+		
+		    // Move cursor to end
+		    const range = document.createRange();
+		    const sel = window.getSelection();
+		    range.selectNodeContents(event.target);
+		    range.collapse(false);
+		    sel.removeAllRanges();
+		    sel.addRange(range);
+		}
+
+        function validateStandardTime(event) {
+            const input = event.target.textContent.match(/(\d{1,2}):(\d{2}):(\d{2}\.\d{2})\s?(AM|PM)?/);
+            if (input) {
+                let [_, hours, minutes, seconds, period] = input;
+                hours = parseInt(hours, 10);
+                minutes = parseInt(minutes, 10);
+                seconds = parseFloat(seconds);
+
+                if (period === 'PM' && hours < 12) hours += 12;
+                if (period === 'AM' && hours === 12) hours = 0;
+
+                customTime = new Date();
+                customTime.setHours(hours, minutes, seconds, (seconds % 1) * 1000);
+
+                // Update clocks and background immediately
+                updateHexClock();
+            }
+        }
+
+        function resetClock() {
+            paused = false;
+            customTime = null;
+            document.getElementById('reset').style.display = 'none';
+            updateHexClock();
+        }
+
+        document.getElementById('time').addEventListener('click', enableEditing);
+        document.getElementById('time').addEventListener('input', validateHexTime);
+        document.getElementById('time').addEventListener('blur', () => document.getElementById('time').setAttribute('contenteditable', 'false'));
+
+        document.getElementById('actual-time').addEventListener('click', enableEditing);
+        document.getElementById('actual-time').addEventListener('input', validateStandardTime);
+        document.getElementById('actual-time').addEventListener('blur', () => document.getElementById('actual-time').setAttribute('contenteditable', 'false'));
+
+        document.getElementById('reset').addEventListener('click', resetClock);
+
+        updateHexClock();
+    </script>
+</body>
+</html>
